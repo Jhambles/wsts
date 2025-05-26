@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<categories>
+
+    <category>
+        <name>Nike</name>
+        <description>Nike shoes</description>
+    </category>
+    <category>
+        <name>Adidas</name>
+        <description>Adidas Shoes</description>
+    </category>
+</categories>
