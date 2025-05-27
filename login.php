@@ -26,7 +26,8 @@
         <label class="keep-login">
           <input type="checkbox" name="remember"> Keep me logged in
         </label>
-        <a href="#" class="forgot">Forgot Password?</a>
+        <a href="forgot_password.php" class="forgot">Forgot Password?</a>
+
       </div>
 
       <input type="submit" class="btn" value="Sign In" name="signIn">

@@ -10,7 +10,7 @@
 <body>
   <div class="container" id="signup">
     <h1 class="form-title">Sign Up</h1>
-    <form method="post" action="register.php">
+    <form id="register-form">
       <div class="input-group">
         <i class="fas fa-user"></i>
         <input type="text" name="fName" placeholder="First Name" required>
@@ -28,15 +28,6 @@
         <input type="password" name="password" placeholder="Password" required>
       </div>
 
-     <!-- <div class="captcha-box"> 
-        <label for="captcha">Enter CAPTCHA:</label>
-        <input type="text" id="captcha" name="captcha" placeholder="Type the text shown" required>
-        <div class="captcha-img">
-          <img src="generate-captcha.php" alt="CAPTCHA Image">
-          <button type="button" onclick="reloadCaptcha()">↻</button>
-        </div>
-      </div>-->
-
       <input type="submit" class="btn" value="Sign Up" name="signUp">
     </form>
 
@@ -52,11 +43,33 @@
     </div>
   </div>
 
-   <script>
-  //  function reloadCaptcha() {
-   //   const img = document.querySelector('.captcha-img img');
-    //  img.src = 'generate-captcha.php?' + Date.now();
-   // }
- </script>
+  <!-- Success Modal -->
+  <div id="success-modal" style="display:none; position: fixed; top: 20%; left: 50%; transform: translate(-50%, -20%); background: white; padding: 20px; border: 2px solid #4caf50; box-shadow: 0 0 10px rgba(0,0,0,0.2); z-index: 1000; border-radius: 8px;">
+    <p>🎉 Registration successful! Please check your email to verify your account.</p>
+    <button id="close-modal" style="margin-top:10px;">OK</button>
+  </div>
+
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+  <!-- AJAX Submit Script -->
+  <script>
+    $('#register-form').on('submit', function(e) {
+      e.preventDefault();
+
+      $.post('register.php', $(this).serialize(), function(response) {
+        if (response.status === 'success') {
+          $('#success-modal').fadeIn();
+        } else {
+          alert(response.message || 'Registration failed.');
+        }
+      }, 'json');
+    });
+
+    $('#close-modal').on('click', function() {
+      $('#success-modal').fadeOut();
+    });
+  </script>
 </body>
 </html>
+

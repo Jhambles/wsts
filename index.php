@@ -116,21 +116,15 @@ $paginated = array_slice($filtered, $offset, $perPage);
         </select>
         <input type="text" name="search" value="<?= htmlspecialchars($search) ?>" placeholder="Search MM CULTURE">
         <button type="submit">🔍</button>
+
+        <!-- Cart icon button -->
         <button type="button" id="toggle-cart">🛒</button>
+
+        <!-- Logout button -->
+        <button type="button" onclick="location.href='logout.php'" style="margin-left: 10px;">Logout</button>
     </form>
 </div>
 
-<div class="cart-alert" id="cart-alert">Product added to cart</div>
-
-<div class="cart-panel" id="cart-panel" style="display:none;">
-    <button id="close-cart" style="position: absolute; top: 10px; right: 10px; font-size: 20px; background: none; border: none; cursor: pointer;">&times;</button>
-    <h3>Your Cart</h3>
-    <div id="cart-items"></div>
-<button id="checkout-button" style="margin-top: 20px; padding: 10px; width: 100%; background-color: #4caf50; color: white; border: none; border-radius: 5px; font-size: 16px; cursor: pointer;">
-    Proceed to Checkout
-</button>
-
-</div>
 
 <?php
 $anyProductsShown = false;

@@ -28,4 +28,6 @@ while ($row = $result->fetch_assoc()) {
         <input type='submit' value='Delete'>
     </form><hr>";
 }
+
+
 ?>

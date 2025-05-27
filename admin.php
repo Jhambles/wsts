@@ -8,9 +8,6 @@ if (isset($_GET['tab']) && $_GET['tab'] === 'logout') {
     exit;
 }
 
-// ... rest of your code ...
-
-
 $categoriesFile = 'data/categories.xml';
 $productsFile = 'data/products.xml';
 $usersFile = 'data/users.xml';
@@ -29,13 +26,12 @@ if (!file_exists($transactionsFile) || filesize($transactionsFile) === 0) {
     file_put_contents($transactionsFile, '<transactions></transactions>');
 }
 
-
 $categoriesXml = simplexml_load_file($categoriesFile);
 $productsXml = simplexml_load_file($productsFile);
 $usersXml = simplexml_load_file($usersFile);
 $transactionsXml = simplexml_load_file($transactionsFile);
 
-// Handle category addition POST request
+// Handle POST requests
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Add Category
     if (isset($_POST['add_category'])) {
@@ -75,7 +71,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 unset($categoriesXml->category[$indexToRemove]);
                 $categoriesXml->asXML($categoriesFile);
 
-                // Also delete all products in that category
+                // Also delete products in that category
                 $productsChanged = false;
                 for ($i = count($productsXml->product) - 1; $i >= 0; $i--) {
                     $product = $productsXml->product[$i];
@@ -139,19 +135,18 @@ foreach ($productsXml->product as $product) {
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Admin Panel</title>
-
 </head>
 <body>
 <div class="container">
 
     <nav class="sidebar">
-    <a href="?tab=category" <?= $tab === 'category' ? 'class="active"' : '' ?>>Category</a>
-    <a href="?tab=product" <?= $tab === 'product' ? 'class="active"' : '' ?>>Product</a>
-    <a href="?tab=update_product" <?= $tab === 'update_product' ? 'class="active"' : '' ?>>Update Product</a>
-    <a href="?tab=transactions" <?= $tab === 'transactions' ? 'class="active"' : '' ?>>Transactions</a>
-    <a href="?tab=users" <?= $tab === 'users' ? 'class="active"' : '' ?>>Users</a>
-    <a href="?tab=logout" <?= $tab === 'logout' ? 'class="active"' : '' ?>>Logout</a>
-</nav>
+        <a href="?tab=category" <?= $tab === 'category' ? 'class="active"' : '' ?>>Category</a>
+        <a href="?tab=product" <?= $tab === 'product' ? 'class="active"' : '' ?>>Product</a>
+        <a href="?tab=update_product" <?= $tab === 'update_product' ? 'class="active"' : '' ?>>Update Product</a>
+        <a href="?tab=transactions" <?= $tab === 'transactions' ? 'class="active"' : '' ?>>Transactions</a>
+        <a href="?tab=users" <?= $tab === 'users' ? 'class="active"' : '' ?>>Users</a>
+        <a href="?tab=logout" <?= $tab === 'logout' ? 'class="active"' : '' ?>>Logout</a>
+    </nav>
 
     <main class="content">
 
@@ -240,13 +235,12 @@ foreach ($productsXml->product as $product) {
                                 'name' => (string)$product->name,
                                 'category' => (string)$product->category,
                                 'price' => (string)$product->price,
-                                'description' => (string)$product->description,
                                 'quantity' => (string)$product->quantity,
+                                'description' => (string)$product->description,
                                 'tags' => (string)$product->tags,
-                                'image' => (string)$product->image ?? '',
-                            ]) ?>)'>Update</button>
+                            ]) ?>)'>Edit</button>
 
-                            <form method="post" class="delete-form" action="admin.php?tab=update_product" onsubmit="return confirm('Delete product <?= htmlspecialchars(addslashes($product->name)) ?>?');" style="display:inline;">
+                            <form method="post" action="admin.php?tab=update_product" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this product?');">
                                 <input type="hidden" name="delete_product_id" value="<?= htmlspecialchars($product['id']) ?>" />
                                 <button type="submit" name="delete_product">Delete</button>
                             </form>
@@ -255,182 +249,104 @@ foreach ($productsXml->product as $product) {
                 <?php endforeach; ?>
             </ul>
 
-            <!-- Update Product Modal -->
-            <div id="updateModal" class="modal" aria-hidden="true" role="dialog" aria-labelledby="updateModalTitle" aria-modal="true">
-                <div class="modal-content">
-                    <span class="close" onclick="closeUpdateModal()" role="button" aria-label="Close modal">&times;</span>
-                    <h2 id="updateModalTitle">Update Product Form</h2>
-                    <form id="updateProductForm" method="post" action="store.php" enctype="multipart/form-data" class="form">
+            <!-- Modal for product update -->
+            <div id="updateModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; 
+                 background:rgba(0,0,0,0.7); justify-content:center; align-items:center;">
+                <div style="background:#fff; padding:20px; border-radius:8px; width:400px; max-width:90%;">
+                    <h2>Edit Product</h2>
+                    <form id="updateForm" method="post" action="store.php" enctype="multipart/form-data">
                         <input type="hidden" name="action" value="update_product" />
-                        <input type="hidden" name="id" id="updateId">
-
-                        <div class="form-group">
-                            <label for="productSelect">Select Product</label>
-                            <select id="productSelect" required onchange="loadProductDetails(this.value)">
-                                <option value="">-- Select Product --</option>
-                                <?php foreach ($productsXml->product as $p): ?>
-                                    <option value="<?= $p['id'] ?>"><?= htmlspecialchars($p->name) ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="updateName">Name</label>
-                            <input type="text" id="updateName" name="name" required>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="updateCategory">Category</label>
-                            <select id="updateCategory" name="category" required>
-                                <option value="">Select Category</option>
-                                <?php foreach ($categoriesXml->category as $cat): ?>
-                                    <option value="<?= htmlspecialchars($cat->name) ?>"><?= htmlspecialchars($cat->name) ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="updatePrice">Price</label>
-                            <input type="number" step="0.01" id="updatePrice" name="price" required>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="updateDescription">Description</label>
-                            <textarea id="updateDescription" name="description" rows="4" required></textarea>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="updateQuantity">Stock Quantity</label>
-                            <input type="number" id="updateQuantity" name="quantity" min="0" required>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="updateTags">Tags (comma-separated)</label>
-                            <input type="text" id="updateTags" name="tags" placeholder="tag1, tag2">
-                        </div>
-
-                        <div class="form-group">
-                            <label for="updateImage">Image (leave empty to keep existing)</label>
-                            <input type="file" id="updateImage" name="image" accept="image/*">
-                        </div>
-
-                        <button type="submit" class="btn">Update Product</button>
+                        <input type="hidden" name="id" id="productId" />
+                        <label>Category:</label>
+                        <select name="category" id="productCategory" required>
+                            <option value="">Select Category</option>
+                            <?php foreach ($categoriesXml->category as $cat): ?>
+                                <option value="<?= htmlspecialchars($cat->name) ?>"><?= htmlspecialchars($cat->name) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                        <label>Name:</label>
+                        <input type="text" name="name" id="productName" required />
+                        <label>Price:</label>
+                        <input type="text" name="price" id="productPrice" required />
+                        <label>Quantity:</label>
+                        <input type="number" name="quantity" id="productQuantity" />
+                        <label>Description:</label>
+                        <textarea name="description" id="productDescription"></textarea>
+                        <label>Tags:</label>
+                        <input type="text" name="tags" id="productTags" placeholder="Comma-separated" />
+                        <label>Image (leave empty to keep current):</label>
+                        <input type="file" name="image" />
+                        <br /><br />
+                        <button type="submit">Save Changes</button>
+                        <button type="button" onclick="closeUpdateModal()">Cancel</button>
                     </form>
                 </div>
             </div>
 
-            <script>
-                const products = <?= json_encode(array_map(function($p) {
-                    return [
-                        'id' => (string)$p['id'],
-                        'name' => (string)$p->name,
-                        'category' => (string)$p->category,
-                        'price' => (string)$p->price,
-                        'description' => (string)$p->description,
-                        'quantity' => (string)$p->quantity,
-                        'tags' => (string)$p->tags,
-                        'image' => (string)$p->image ?? '',
-                    ];
-                }, iterator_to_array($productsXml->product))) ?>;
-                function openUpdateModal(productData) {
-                    const modal = document.getElementById('updateModal');
-                    modal.style.display = 'block';
-                    modal.setAttribute('aria-hidden', 'false');
-
-                    // Pre-fill form with selected product data
-                    document.getElementById('updateId').value = productData.id || '';
-                    document.getElementById('updateName').value = productData.name || '';
-                    document.getElementById('updateCategory').value = productData.category || '';
-                    document.getElementById('updatePrice').value = productData.price || '';
-                    document.getElementById('updateDescription').value = productData.description || '';
-                    document.getElementById('updateQuantity').value = productData.quantity || '';
-                    document.getElementById('updateTags').value = productData.tags || '';
-                    // Reset file input
-                    document.getElementById('updateImage').value = '';
-                    // Set product select to current product
-                    const select = document.getElementById('productSelect');
-                    select.value = productData.id;
-                }
-                function closeUpdateModal() {
-                    const modal = document.getElementById('updateModal');
-                    modal.style.display = 'none';
-                    modal.setAttribute('aria-hidden', 'true');
-                }
-                // Close modal when clicking outside modal content
-                window.onclick = function(event) {
-                    const modal = document.getElementById('updateModal');
-                    if (event.target === modal) {
-                        closeUpdateModal();
-                    }
-                };
-
-                // Load product details in form when selecting product from dropdown
-                function loadProductDetails(productId) {
-                    const product = products.find(p => p.id === productId);
-                    if (!product) return;
-
-                    document.getElementById('updateId').value = product.id;
-                    document.getElementById('updateName').value = product.name;
-                    document.getElementById('updateCategory').value = product.category;
-                    document.getElementById('updatePrice').value = product.price;
-                    document.getElementById('updateDescription').value = product.description;
-                    document.getElementById('updateQuantity').value = product.quantity;
-                    document.getElementById('updateTags').value = product.tags;
-                    document.getElementById('updateImage').value = '';
-                }
-            </script>
         <?php elseif ($tab === 'transactions'): ?>
             <header><h1>Transactions</h1></header>
-            <table border="1" cellpadding="5" cellspacing="0" style="width:100%; border-collapse: collapse;">
-                <thead>
-                    <tr>
-                        <th>Transaction ID</th>
-                        <th>User</th>
-                        <th>Product</th>
-                        <th>Quantity</th>
-                        <th>Price</th>
-                        <th>Date</th>
-                    </tr>
-                </thead>
-                <tbody>
+            <?php if (count($transactionsXml->transaction) === 0): ?>
+                <p>No transactions available.</p>
+            <?php else: ?>
+                <ul>
                     <?php foreach ($transactionsXml->transaction as $transaction): ?>
-                        <tr>
-                            <td><?= htmlspecialchars($transaction['id']) ?></td>
-                            <td><?= htmlspecialchars($transaction->user) ?></td>
-                            <td><?= htmlspecialchars($transaction->product) ?></td>
-                            <td><?= htmlspecialchars($transaction->quantity) ?></td>
-                            <td>$<?= number_format((float)$transaction->price, 2) ?></td>
-                            <td><?= htmlspecialchars($transaction->date) ?></td>
-                        </tr>
+                        <li>
+                            <strong>Transaction ID:</strong> <?= htmlspecialchars($transaction['id']) ?><br />
+                            <strong>User ID:</strong> <?= htmlspecialchars($transaction->user_id) ?><br />
+                            <strong>Products:</strong>
+                            <ul>
+                                <?php foreach ($transaction->products->product as $prod): ?>
+                                    <li><?= htmlspecialchars($prod->name) ?> x<?= htmlspecialchars($prod->quantity) ?></li>
+                                <?php endforeach; ?>
+                            </ul>
+                            <strong>Total:</strong> $<?= number_format((float)$transaction->total, 2) ?><br />
+                            <strong>Date:</strong> <?= htmlspecialchars($transaction->date) ?>
+                        </li>
                     <?php endforeach; ?>
-                </tbody>
-            </table>
+                </ul>
+            <?php endif; ?>
 
         <?php elseif ($tab === 'users'): ?>
             <header><h1>Users</h1></header>
-            <table border="1" cellpadding="5" cellspacing="0" style="width:100%; border-collapse: collapse;">
-                <thead>
-                    <tr>
-                        <th>Username</th>
-                        <th>Email</th>
-                        <th>Role</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($usersXml->user as $user): ?>
-                        <tr>
-                            <td><?= htmlspecialchars($user->username) ?></td>
-                            <td><?= htmlspecialchars($user->email) ?></td>
-                            <td><?= htmlspecialchars($user->role) ?></td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-        <?php else: ?>
-            <p>Invalid tab selection.</p>
+            <div id="usersTableContainer">
+                <!-- Users data will be loaded here via AJAX or dynamically -->
+            </div>
+
         <?php endif; ?>
+
     </main>
 </div>
-</body>
 
+<script>
+function openUpdateModal(product) {
+    document.getElementById('updateModal').style.display = 'flex';
+    document.getElementById('productId').value = product.id;
+    document.getElementById('productName').value = product.name;
+    document.getElementById('productCategory').value = product.category;
+    document.getElementById('productPrice').value = product.price;
+    document.getElementById('productQuantity').value = product.quantity;
+    document.getElementById('productDescription').value = product.description;
+    document.getElementById('productTags').value = product.tags;
+}
+
+function closeUpdateModal() {
+    document.getElementById('updateModal').style.display = 'none';
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Load users dynamically for the users tab
+    if ('<?= $tab ?>' === 'users') {
+        fetch('user_fetch.php')
+            .then(response => response.text())
+            .then(html => {
+                document.getElementById('usersTableContainer').innerHTML = html;
+            })
+            .catch(err => {
+                document.getElementById('usersTableContainer').innerHTML = '<p>Failed to load users.</p>';
+            });
+    }
+});
+</script>
+
+</body>
 </html>
