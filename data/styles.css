@@ -298,3 +298,68 @@ form button:hover {
   color: red;
   cursor: pointer;
 }
+
+        .search-filter {
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .search-filter input[type="text"], 
+        .search-filter select, 
+        .search-filter button {
+            padding: 10px;
+            margin-right: 10px;
+        }
+        form.delete-form {
+            display: inline;
+        }
+        /* Modal styling */
+        .modal {
+            display: none; 
+            position: fixed; 
+            z-index: 9999; 
+            left: 0; top: 0;
+            width: 100%; height: 100%;
+            overflow: auto; 
+            background-color: rgba(0,0,0,0.5);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 10% auto; 
+            padding: 20px;
+            border: 1px solid #888;
+            max-width: 600px;
+            border-radius: 8px;
+            position: relative;
+        }
+        .close {
+            position: absolute;
+            right: 15px;
+            top: 10px;
+            font-size: 28px;
+            font-weight: bold;
+            color: #aaa;
+            cursor: pointer;
+        }
+        .close:hover {
+            color: black;
+        }
+        .form-group {
+            margin-bottom: 1em;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: .3em;
+        }
+        .btn {
+            padding: 10px 20px;
+            background-color: #0069d9;
+            border: none;
+            color: white;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        .btn:hover {
+            background-color: #0053ba;
+        }

@@ -1,6 +1,16 @@
 <?php
 session_start();
 
+if (isset($_GET['tab']) && $_GET['tab'] === 'logout') {
+    session_unset();
+    session_destroy();
+    header('Location: login.php');
+    exit;
+}
+
+// ... rest of your code ...
+
+
 $categoriesFile = 'data/categories.xml';
 $productsFile = 'data/products.xml';
 $usersFile = 'data/users.xml';
@@ -18,6 +28,7 @@ if (!file_exists($usersFile)) {
 if (!file_exists($transactionsFile) || filesize($transactionsFile) === 0) {
     file_put_contents($transactionsFile, '<transactions></transactions>');
 }
+
 
 $categoriesXml = simplexml_load_file($categoriesFile);
 $productsXml = simplexml_load_file($productsFile);
@@ -53,7 +64,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['delete_category'])) {
         $delCategoryName = trim($_POST['delete_category_name'] ?? '');
         if ($delCategoryName !== '') {
-            // Remove category node
             $indexToRemove = null;
             foreach ($categoriesXml->category as $idx => $category) {
                 if (strcasecmp((string)$category->name, $delCategoryName) === 0) {
@@ -121,7 +131,6 @@ foreach ($productsXml->product as $product) {
         $filteredProducts[] = $product;
     }
 }
-
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -130,36 +139,19 @@ foreach ($productsXml->product as $product) {
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Admin Panel</title>
-    <style>
-        .search-filter {
-            display: flex;
-            justify-content: flex-start;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-        .search-filter input[type="text"], 
-        .search-filter select, 
-        .search-filter button {
-            padding: 10px;
-            margin-right: 10px;
-        }
-        form.delete-form {
-            display: inline;
-        
-        }
-    </style>
+
 </head>
 <body>
 <div class="container">
 
     <nav class="sidebar">
-        <a href="?tab=category" <?= $tab === 'category' ? 'class="active"' : '' ?>>Category</a>
-        <a href="?tab=product" <?= $tab === 'product' ? 'class="active"' : '' ?>>Product</a>
-        <a href="?tab=update_product" <?= $tab === 'update_product' ? 'class="active"' : '' ?>>Update Product</a>
-        <a href="?tab=transactions" <?= $tab === 'transactions' ? 'class="active"' : '' ?>>Transactions</a>
-        <a href="?tab=users" <?= $tab === 'users' ? 'class="active"' : '' ?>>Users</a>
-        <a href="logout.php">Logout</a>
-    </nav>
+    <a href="?tab=category" <?= $tab === 'category' ? 'class="active"' : '' ?>>Category</a>
+    <a href="?tab=product" <?= $tab === 'product' ? 'class="active"' : '' ?>>Product</a>
+    <a href="?tab=update_product" <?= $tab === 'update_product' ? 'class="active"' : '' ?>>Update Product</a>
+    <a href="?tab=transactions" <?= $tab === 'transactions' ? 'class="active"' : '' ?>>Transactions</a>
+    <a href="?tab=users" <?= $tab === 'users' ? 'class="active"' : '' ?>>Users</a>
+    <a href="?tab=logout" <?= $tab === 'logout' ? 'class="active"' : '' ?>>Logout</a>
+</nav>
 
     <main class="content">
 
@@ -204,259 +196,241 @@ foreach ($productsXml->product as $product) {
             </form>
 
         <?php elseif ($tab === 'update_product'): ?>
-    <header><h1>Update Product</h1></header>
+            <header><h1>Update Product</h1></header>
 
-    <section class="search-filter">
-        <form method="get" action="" style="display: flex; align-items: center;">
-            <input type="hidden" name="tab" value="update_product" />
-            <input type="text" name="search" value="<?= htmlspecialchars($searchQuery) ?>" placeholder="Search Products" />
-            <select name="tag">
-                <option value="">Select a Tag</option>
-                <?php
-                $tags = [];
-                foreach ($productsXml->product as $product) {
-                    $productTags = explode(',', (string) $product->tags);
-                    foreach ($productTags as $tag) {
-                        $tags[] = trim($tag);
-                    }
-                }
-                $tags = array_unique($tags);
-                foreach ($tags as $tag): ?>
-                    <option value="<?= htmlspecialchars($tag) ?>" <?= $selectedTag === $tag ? 'selected' : '' ?>><?= htmlspecialchars($tag) ?></option>
+            <section class="search-filter">
+                <form method="get" action="" style="display: flex; align-items: center;">
+                    <input type="hidden" name="tab" value="update_product" />
+                    <input type="text" name="search" value="<?= htmlspecialchars($searchQuery) ?>" placeholder="Search Products" />
+                    <select name="tag">
+                        <option value="">Select a Tag</option>
+                        <?php
+                        $tags = [];
+                        foreach ($productsXml->product as $product) {
+                            $productTags = explode(',', (string) $product->tags);
+                            foreach ($productTags as $tag) {
+                                $tagTrimmed = trim($tag);
+                                if ($tagTrimmed !== '') {
+                                    $tags[] = $tagTrimmed;
+                                }
+                            }
+                        }
+                        $tags = array_unique($tags);
+                        foreach ($tags as $tag): ?>
+                            <option value="<?= htmlspecialchars($tag) ?>" <?= $selectedTag === $tag ? 'selected' : '' ?>><?= htmlspecialchars($tag) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <button type="submit">Filter</button>
+                </form>
+            </section>
+
+            <h2>Filtered Products</h2>
+            <ul>
+                <?php foreach ($filteredProducts as $product): ?>
+                    <li>
+                        <strong><?= htmlspecialchars($product->name) ?></strong><br />
+                        Category: <?= htmlspecialchars($product->category) ?><br />
+                        Tags: <?= htmlspecialchars($product->tags) ?><br />
+                        Price: $<?= number_format((float)$product->price, 2) ?><br />
+                        Stock: <?= htmlspecialchars($product->quantity) ?>
+
+                        <div style="margin-top: 10px;">
+                            <button type="button" onclick='openUpdateModal(<?= json_encode([
+                                'id' => (string)$product['id'],
+                                'name' => (string)$product->name,
+                                'category' => (string)$product->category,
+                                'price' => (string)$product->price,
+                                'description' => (string)$product->description,
+                                'quantity' => (string)$product->quantity,
+                                'tags' => (string)$product->tags,
+                                'image' => (string)$product->image ?? '',
+                            ]) ?>)'>Update</button>
+
+                            <form method="post" class="delete-form" action="admin.php?tab=update_product" onsubmit="return confirm('Delete product <?= htmlspecialchars(addslashes($product->name)) ?>?');" style="display:inline;">
+                                <input type="hidden" name="delete_product_id" value="<?= htmlspecialchars($product['id']) ?>" />
+                                <button type="submit" name="delete_product">Delete</button>
+                            </form>
+                        </div>
+                    </li>
                 <?php endforeach; ?>
-            </select>
-            <button type="submit">Filter</button>
-        </form>
-    </section>
+            </ul>
 
-    <h2>Filtered Products</h2>
-    <ul>
-        <?php foreach ($filteredProducts as $product): ?>
-            <li>
-                <strong><?= htmlspecialchars($product->name) ?></strong><br />
-                Category: <?= htmlspecialchars($product->category) ?><br />
-                Tags: <?= htmlspecialchars($product->tags) ?><br />
-                Price: $<?= number_format((float)$product->price, 2) ?><br />
-                Stock: <?= htmlspecialchars($product->quantity) ?>
+            <!-- Update Product Modal -->
+            <div id="updateModal" class="modal" aria-hidden="true" role="dialog" aria-labelledby="updateModalTitle" aria-modal="true">
+                <div class="modal-content">
+                    <span class="close" onclick="closeUpdateModal()" role="button" aria-label="Close modal">&times;</span>
+                    <h2 id="updateModalTitle">Update Product Form</h2>
+                    <form id="updateProductForm" method="post" action="store.php" enctype="multipart/form-data" class="form">
+                        <input type="hidden" name="action" value="update_product" />
+                        <input type="hidden" name="id" id="updateId">
 
-                <div style="margin-top: 10px;">
-    <button type="button" onclick='openUpdateModal(<?= json_encode([
-    'id' => (string)$product['id'],
-    'name' => (string)$product->name,
-    'category' => (string)$product->category,
-    'price' => (string)$product->price,
-    'description' => (string)$product->description,
-    'quantity' => (string)$product->quantity,
-    'tags' => (string)$product->tags,
-]) ?>)'>Update</button>
+                        <div class="form-group">
+                            <label for="productSelect">Select Product</label>
+                            <select id="productSelect" required onchange="loadProductDetails(this.value)">
+                                <option value="">-- Select Product --</option>
+                                <?php foreach ($productsXml->product as $p): ?>
+                                    <option value="<?= $p['id'] ?>"><?= htmlspecialchars($p->name) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
 
+                        <div class="form-group">
+                            <label for="updateName">Name</label>
+                            <input type="text" id="updateName" name="name" required>
+                        </div>
 
-    <form method="post" class="delete-form" action="admin.php?tab=update_product" onsubmit="return confirm('Delete product <?= htmlspecialchars(addslashes($product->name)) ?>?');">
-        <input type="hidden" name="delete_product_id" value="<?= htmlspecialchars($product['id']) ?>" />
-        <button type="submit" name="delete_product">Delete</button>
-    </form>
-</div>
+                        <div class="form-group">
+                            <label for="updateCategory">Category</label>
+                            <select id="updateCategory" name="category" required>
+                                <option value="">Select Category</option>
+                                <?php foreach ($categoriesXml->category as $cat): ?>
+                                    <option value="<?= htmlspecialchars($cat->name) ?>"><?= htmlspecialchars($cat->name) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
 
-            </li>
-        <?php endforeach; ?>
-    </ul>
+                        <div class="form-group">
+                            <label for="updatePrice">Price</label>
+                            <input type="number" step="0.01" id="updatePrice" name="price" required>
+                        </div>
 
-  
+                        <div class="form-group">
+                            <label for="updateDescription">Description</label>
+                            <textarea id="updateDescription" name="description" rows="4" required></textarea>
+                        </div>
 
-    <script>
-        const productData = <?= json_encode(array_map(function($p) {
-            return [
-                'id' => (string) $p['id'],
-                'name' => (string) $p->name,
-                'category' => (string) $p->category,
-                'price' => (string) $p->price,
-                'description' => (string) $p->description,
-                'quantity' => (string) $p->quantity,
-                'tags' => (string) $p->tags,
-                'image' => (string) $p->image
-            ];
-        }, iterator_to_array($productsXml->product))) ?>;
+                        <div class="form-group">
+                            <label for="updateQuantity">Stock Quantity</label>
+                            <input type="number" id="updateQuantity" name="quantity" min="0" required>
+                        </div>
 
-        const select = document.getElementById('productSelect');
-        const fields = {
-            name: document.getElementById('name'),
-            category: document.getElementById('category'),
-            price: document.getElementById('price'),
-            description: document.getElementById('description'),
-            quantity: document.getElementById('quantity'),
-            tags: document.getElementById('tags'),
-            image: document.getElementById('currentImage')
-        };
+                        <div class="form-group">
+                            <label for="updateTags">Tags (comma-separated)</label>
+                            <input type="text" id="updateTags" name="tags" placeholder="tag1, tag2">
+                        </div>
 
-        select.addEventListener('change', () => {
-            const selected = productData.find(p => p.id === select.value);
-            if (selected) {
-                fields.name.value = selected.name;
-                fields.category.value = selected.category;
-                fields.price.value = selected.price;
-                fields.description.value = selected.description;
-                fields.quantity.value = selected.quantity;
-                fields.tags.value = selected.tags;
-                if (selected.image) {
-                    fields.image.src = 'data/uploads/' + selected.image;
-                    fields.image.style.display = 'block';
-                } else {
-                    fields.image.style.display = 'none';
+                        <div class="form-group">
+                            <label for="updateImage">Image (leave empty to keep existing)</label>
+                            <input type="file" id="updateImage" name="image" accept="image/*">
+                        </div>
+
+                        <button type="submit" class="btn">Update Product</button>
+                    </form>
+                </div>
+            </div>
+
+            <script>
+                const products = <?= json_encode(array_map(function($p) {
+                    return [
+                        'id' => (string)$p['id'],
+                        'name' => (string)$p->name,
+                        'category' => (string)$p->category,
+                        'price' => (string)$p->price,
+                        'description' => (string)$p->description,
+                        'quantity' => (string)$p->quantity,
+                        'tags' => (string)$p->tags,
+                        'image' => (string)$p->image ?? '',
+                    ];
+                }, iterator_to_array($productsXml->product))) ?>;
+                function openUpdateModal(productData) {
+                    const modal = document.getElementById('updateModal');
+                    modal.style.display = 'block';
+                    modal.setAttribute('aria-hidden', 'false');
+
+                    // Pre-fill form with selected product data
+                    document.getElementById('updateId').value = productData.id || '';
+                    document.getElementById('updateName').value = productData.name || '';
+                    document.getElementById('updateCategory').value = productData.category || '';
+                    document.getElementById('updatePrice').value = productData.price || '';
+                    document.getElementById('updateDescription').value = productData.description || '';
+                    document.getElementById('updateQuantity').value = productData.quantity || '';
+                    document.getElementById('updateTags').value = productData.tags || '';
+                    // Reset file input
+                    document.getElementById('updateImage').value = '';
+                    // Set product select to current product
+                    const select = document.getElementById('productSelect');
+                    select.value = productData.id;
                 }
-            }
-        });
-        <script>
-    function loadProductDetails(productId) {
-    const selected = productData.find(p => p.id === productId);
-    if (selected) {
-        document.getElementById('productSelect').value = selected.id;
-        document.getElementById('updateName').value = selected.name;
-        document.getElementById('updateCategory').value = selected.category;
-        document.getElementById('updatePrice').value = selected.price;
-        document.getElementById('updateDescription').value = selected.description;
-        document.getElementById('updateQuantity').value = selected.quantity;
-        document.getElementById('updateTags').value = selected.tags;
+                function closeUpdateModal() {
+                    const modal = document.getElementById('updateModal');
+                    modal.style.display = 'none';
+                    modal.setAttribute('aria-hidden', 'true');
+                }
+                // Close modal when clicking outside modal content
+                window.onclick = function(event) {
+                    const modal = document.getElementById('updateModal');
+                    if (event.target === modal) {
+                        closeUpdateModal();
+                    }
+                };
 
-        if (selected.image) {
-            document.getElementById('currentImage').src = 'data/uploads/' + selected.image;
-            document.getElementById('currentImage').style.display = 'block';
-        } else {
-            document.getElementById('currentImage').style.display = 'none';
-        }
+                // Load product details in form when selecting product from dropdown
+                function loadProductDetails(productId) {
+                    const product = products.find(p => p.id === productId);
+                    if (!product) return;
 
-        // Scroll to form
-        document.getElementById('updateModal').scrollIntoView({ behavior: 'smooth' });
-    }
-}
-</script>
+                    document.getElementById('updateId').value = product.id;
+                    document.getElementById('updateName').value = product.name;
+                    document.getElementById('updateCategory').value = product.category;
+                    document.getElementById('updatePrice').value = product.price;
+                    document.getElementById('updateDescription').value = product.description;
+                    document.getElementById('updateQuantity').value = product.quantity;
+                    document.getElementById('updateTags').value = product.tags;
+                    document.getElementById('updateImage').value = '';
+                }
+            </script>
+        <?php elseif ($tab === 'transactions'): ?>
+            <header><h1>Transactions</h1></header>
+            <table border="1" cellpadding="5" cellspacing="0" style="width:100%; border-collapse: collapse;">
+                <thead>
+                    <tr>
+                        <th>Transaction ID</th>
+                        <th>User</th>
+                        <th>Product</th>
+                        <th>Quantity</th>
+                        <th>Price</th>
+                        <th>Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($transactionsXml->transaction as $transaction): ?>
+                        <tr>
+                            <td><?= htmlspecialchars($transaction['id']) ?></td>
+                            <td><?= htmlspecialchars($transaction->user) ?></td>
+                            <td><?= htmlspecialchars($transaction->product) ?></td>
+                            <td><?= htmlspecialchars($transaction->quantity) ?></td>
+                            <td>$<?= number_format((float)$transaction->price, 2) ?></td>
+                            <td><?= htmlspecialchars($transaction->date) ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
 
-    </script>
-    <script>
-    // Open modal and populate form fields
-    function openUpdateModal(product) {
-        document.getElementById('updateId').value = product.id || '';
-        document.getElementById('updateName').value = product.name || '';
-        document.getElementById('updateCategory').value = product.category || '';
-        document.getElementById('updatePrice').value = product.price || '';
-        document.getElementById('updateDescription').value = product.description || '';
-        document.getElementById('updateQuantity').value = product.quantity || '';
-        document.getElementById('updateTags').value = product.tags || '';
-        // Clear image input
-        document.getElementById('updateImage').value = '';
-
-        document.getElementById('updateModal').style.display = 'block';
-    }
-
-    // Close modal and reset form
-    function closeUpdateModal() {
-        document.getElementById('updateModal').style.display = 'none';
-        document.getElementById('updateProductForm').reset();
-    }
-
-    // Close modal if clicking outside modal content
-    window.onclick = function(event) {
-        const modal = document.getElementById('updateModal');
-        if (event.target === modal) {
-            closeUpdateModal();
-        }
-    };
-
-    // Submit update form with AJAX
-    document.getElementById('updateProductForm').addEventListener('submit', function(e) {
-        e.preventDefault();
-        const formData = new FormData(this);
-        formData.append('action', 'update_product');
-
-        fetch('store.php', {
-            method: 'POST',
-            body: formData
-        })
-        .then(res => res.json())
-        .then(data => {
-            alert(data.status || data.error);
-            if (data.status) {
-                closeUpdateModal();
-                // Reload product list or page to reflect updates
-                location.reload();
-            }
-        })
-        .catch(err => {
-            alert('Error updating product.');
-            console.error(err);
-        });
-    });
-</script>
-
-<?php endif; ?>
-
-
+        <?php elseif ($tab === 'users'): ?>
+            <header><h1>Users</h1></header>
+            <table border="1" cellpadding="5" cellspacing="0" style="width:100%; border-collapse: collapse;">
+                <thead>
+                    <tr>
+                        <th>Username</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($usersXml->user as $user): ?>
+                        <tr>
+                            <td><?= htmlspecialchars($user->username) ?></td>
+                            <td><?= htmlspecialchars($user->email) ?></td>
+                            <td><?= htmlspecialchars($user->role) ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        <?php else: ?>
+            <p>Invalid tab selection.</p>
+        <?php endif; ?>
     </main>
 </div>
-<!-- Update Product Modal -->
-<div id="updateModal" class="modal">
-    <div class="modal-content">
-        <span class="close" onclick="closeUpdateModal()">&times;</span>
-        <h2>Update Product Form</h2>
-        <form id="updateProductForm" method="post" action="store.php" enctype="multipart/form-data" class="form">
-            <input type="hidden" name="action" value="update_product" />
-            <input type="hidden" name="id" id="updateId">
-
-            <div class="form-group">
-                <label for="productSelect">Select Product</label>
-                <select name="id" id="productSelect" required onchange="loadProductDetails(this.value)">
-                    <option value="">-- Select Product --</option>
-                    <?php foreach ($productsXml->product as $p): ?>
-                        <option value="<?= $p['id'] ?>"><?= htmlspecialchars($p->name) ?></option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label for="updateName">Name</label>
-                <input type="text" id="updateName" name="name" required>
-            </div>
-
-            <div class="form-group">
-                <label for="updateCategory">Category</label>
-                <input type="text" id="updateCategory" name="category" required>
-            </div>
-
-            <div class="form-group">
-                <label for="updatePrice">Price</label>
-                <input type="number" step="0.01" id="updatePrice" name="price" required>
-            </div>
-
-            <div class="form-group">
-                <label for="updateDescription">Description</label>
-                <textarea id="updateDescription" name="description" rows="4" required></textarea>
-            </div>
-
-            <div class="form-group">
-                <label for="updateQuantity">Quantity</label>
-                <input type="number" id="updateQuantity" name="quantity" required>
-            </div>
-
-            <div class="form-group">
-                <label for="updateTags">Tags</label>
-                <input type="text" id="updateTags" name="tags">
-            </div>
-
-            <div class="form-group">
-                <label>Current Image</label><br>
-                <img id="currentImage" src="" alt="Product Image" style="max-width: 200px; display: none;" />
-            </div>
-
-            <div class="form-group">
-                <label for="updateImage">New Image (optional)</label>
-                <input type="file" id="updateImage" name="image">
-            </div>
-
-            <button type="submit" class="btn">Update Product</button>
-        </form>
-    </div>
-</div>
-
-</div>
-
 </body>
+
 </html>

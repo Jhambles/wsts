@@ -4,6 +4,13 @@ require 'includes/db.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['signIn'])) {
     $email = trim($_POST['email']);
+
+    // Validate email format
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        echo "Invalid email format.";
+        exit;
+    }
+
     $password = $_POST['password'];
 
     $stmt = $conn->prepare("SELECT id, fName, lName, password, verified, role FROM users WHERE email = ?");
@@ -24,12 +31,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['signIn'])) {
             exit;
         }
 
-        // ✅ Login successful
+        // Regenerate session ID to prevent fixation
+        session_regenerate_id(true);
+
         $_SESSION['user_id'] = $user['id'];
         $_SESSION['user_name'] = $user['fName'];
         $_SESSION['user_role'] = $user['role'];
 
-        // ✅ Role-based redirect
         if ($user['role'] === 'admin') {
             header("Location: admin.php");
         } else {

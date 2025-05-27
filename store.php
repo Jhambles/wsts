@@ -1,6 +1,9 @@
 <?php
 session_start();
-header('Content-Type: application/json');
+
+if (!isset($_SESSION['cart'])) {
+    $_SESSION['cart'] = [];
+}
 
 $action = $_GET['action'] ?? $_POST['action'] ?? '';
 
@@ -9,6 +12,7 @@ switch ($action) {
     case 'upload_product': uploadProduct(); break;
     case 'get_cart': getCart(); break;
     case 'add_to_cart': addToCart(); break;
+    case 'update_quantity': updateQuantity(); break;
     case 'remove_from_cart': removeFromCart(); break;
     case 'view_users': viewUsers(); break;
     case 'delete_user': deleteUser(); break;
@@ -18,12 +22,13 @@ switch ($action) {
     case 'delete_category': deleteCategory(); break;
     default:
         echo json_encode(["error" => "Invalid action"]);
+        break;
 }
 
 function getProducts() {
     $category = $_GET['category'] ?? '';
     $search = strtolower($_GET['search'] ?? '');
-    $page = max(1, (int)($_GET['page'] ?? 1));  // Ensure page is a positive integer
+    $page = max(1, (int)($_GET['page'] ?? 1));
     $perPage = 5;
 
     if (!file_exists('data/products.xml')) {
@@ -39,9 +44,7 @@ function getProducts() {
 
     $filtered = [];
     foreach ($xml->product as $p) {
-        // Filter by category
         if ($category && strtolower($p->category) !== strtolower($category)) continue;
-        // Filter by search term
         if ($search && strpos(strtolower($p->tags), $search) === false) continue;
         $filtered[] = $p;
     }
@@ -59,42 +62,91 @@ function getProducts() {
             'image' => (string)$p->image,
             'description' => (string)$p->description,
             'quantity' => (int)$p->quantity,
-            'tags' => explode(',', (string)$p->tags)  // Split tags into an array
+            'tags' => explode(',', (string)$p->tags)
         ];
     }, $paginated);
 
     echo json_encode(['products' => $output, 'total' => $total]);
 }
-function getCart() {
-    // Cart logic, similar to your previous version
-    $cart = $_SESSION['cart'] ?? [];
-    $cartItems = [];
-    $cartTotal = 0;
 
+function getCart() {
     if (!file_exists('data/products.xml')) {
-        echo json_encode(['error' => 'Products file not found']);
+        echo '<p>No products found.</p>';
         return;
     }
 
-    $xml = simplexml_load_file('data/products.xml');
-    foreach ($cart as $id => $qty) {
-        foreach ($xml->product as $p) {
+    $products = simplexml_load_file('data/products.xml');
+
+    if (empty($_SESSION['cart'])) {
+        echo '<p>Your cart is empty.</p>';
+        return;
+    }
+
+    foreach ($_SESSION['cart'] as $id => $qty) {
+        foreach ($products->product as $p) {
             if ((string)$p['id'] === $id) {
-                $price = (float)$p->price;
-                $cartItems[] = [
-                    'id' => $id,
-                    'name' => (string)$p->name,
-                    'qty' => $qty,
-                    'price' => $price,
-                    'subtotal' => $price * $qty
-                ];
-                $cartTotal += $price * $qty;
+                $price = number_format((float)$p->price, 2);
+                $image = htmlspecialchars($p->image);
+                $name = htmlspecialchars($p->name);
+
+                echo '<div class="cart-item" data-id="' . htmlspecialchars($id) . '">';
+                echo '<button class="remove-item" title="Remove">&times;</button>';
+                echo '<img src="' . $image . '" class="cart-image" alt="' . $name . '">';
+                echo '<div class="cart-info">';
+                echo '<strong>' . $name . '</strong><br>';
+                echo '<div class="quantity-control">';
+                echo '<button class="decrease">-</button> ';
+                echo '<span class="quantity">' . intval($qty) . '</span> ';
+                echo '<button class="increase">+</button>';
+                echo '</div>';
+                echo '<small>$' . $price . '</small>';
+                echo '</div>';
+                echo '</div>';
                 break;
             }
         }
     }
+}
 
-    echo json_encode(['items' => $cartItems, 'total' => $cartTotal]);
+function addToCart() {
+    $id = $_POST['id'] ?? '';
+    $qty = max(1, (int)($_POST['quantity'] ?? 1));
+
+    if ($id) {
+        if (!isset($_SESSION['cart'][$id])) {
+            $_SESSION['cart'][$id] = 0;
+        }
+        $_SESSION['cart'][$id] += $qty;
+        echo json_encode(['status' => true]);
+    } else {
+        echo json_encode(['status' => false, 'error' => 'Invalid product ID']);
+    }
+}
+
+function updateQuantity() {
+    $id = $_POST['id'] ?? '';
+    $qty = (int)($_POST['quantity'] ?? 0);
+
+    if ($id) {
+        if ($qty > 0) {
+            $_SESSION['cart'][$id] = $qty;
+        } else {
+            unset($_SESSION['cart'][$id]);
+        }
+        echo json_encode(['status' => true]);
+    } else {
+        echo json_encode(['status' => false, 'error' => 'Invalid product ID']);
+    }
+}
+
+function removeFromCart() {
+    $id = $_POST['id'] ?? '';
+    if ($id !== '') {
+        unset($_SESSION['cart'][$id]);
+        echo json_encode(['status' => 'Product removed from cart']);
+    } else {
+        echo json_encode(['error' => 'Invalid product ID']);
+    }
 }
 
 function uploadProduct() {
@@ -120,7 +172,6 @@ function uploadProduct() {
     $p->addChild('quantity', intval($_POST['quantity'] ?? 0));
     $p->addChild('tags', htmlspecialchars($_POST['tags'] ?? ''));
 
-    // Image upload logic
     $imagePath = '';
     if (isset($_FILES['image']) && $_FILES['image']['tmp_name']) {
         $uploadDir = 'uploads/';
@@ -164,7 +215,6 @@ function updateProduct() {
 
     foreach ($xml->product as $p) {
         if ((string)$p['id'] === $id) {
-            // Input validation
             if (isset($_POST['price']) && !is_numeric($_POST['price'])) {
                 echo json_encode(['error' => 'Price must be a number']);
                 return;
@@ -174,7 +224,6 @@ function updateProduct() {
                 return;
             }
 
-            // Update values
             if (!empty($_POST['name'])) $p->name = htmlspecialchars($_POST['name']);
             if (!empty($_POST['category'])) $p->category = htmlspecialchars($_POST['category']);
             if (!empty($_POST['price'])) $p->price = floatval($_POST['price']);
@@ -182,7 +231,6 @@ function updateProduct() {
             if (!empty($_POST['quantity'])) $p->quantity = intval($_POST['quantity']);
             if (!empty($_POST['tags'])) $p->tags = htmlspecialchars($_POST['tags']);
 
-            // Handle image upload if present
             if (isset($_FILES['image']) && $_FILES['image']['tmp_name']) {
                 $uploadDir = 'uploads/';
                 if (!is_dir($uploadDir)) mkdir($uploadDir, 0777, true);
@@ -198,21 +246,18 @@ function updateProduct() {
                 $p->image = $imagePath;
             }
 
-            // Backup current products.xml
+            // Backup before saving
             $backupPath = 'data/products_backup_' . date('Ymd_His') . '.xml';
             copy($file, $backupPath);
 
-            // Save updated XML
             if (!$xml->asXML($file)) {
                 echo json_encode(["error" => "Failed to save product data"]);
                 return;
             }
 
-            // Log the update
             $logEntry = date('Y-m-d H:i:s') . " - Product ID $id updated\n";
             file_put_contents('data/update_log.txt', $logEntry, FILE_APPEND);
 
-            // Return full product data
             echo json_encode([
                 "status" => "Product updated",
                 "product" => [
@@ -233,32 +278,11 @@ function updateProduct() {
     echo json_encode(["error" => "Product not found"]);
 }
 
-
-
-function addToCart() {
-    $id = $_POST['id'] ?? '';
-    $qty = max(1, (int)($_POST['quantity'] ?? 1));
-
-    if ($id) {
-        $_SESSION['cart'][$id] = ($_SESSION['cart'][$id] ?? 0) + $qty;
-        echo json_encode(['status' => 'Product added to cart']);
-    } else {
-        echo json_encode(['error' => 'Invalid product ID']);
-    }
-}
-
-
-function removeFromCart() {
-    $id = $_POST['id'] ?? '';
-    if ($id !== '') {
-        unset($_SESSION['cart'][$id]);
-        echo json_encode(['status' => 'Product removed from cart']);
-    } else {
-        echo json_encode(['error' => 'Invalid product ID']);
-    }
-}
-
 function viewUsers() {
+    if (!file_exists('data/users.xml')) {
+        echo json_encode(['error' => 'Users file not found']);
+        return;
+    }
     $xml = simplexml_load_file('data/users.xml');
     $users = [];
     foreach ($xml->user as $u) {
@@ -270,6 +294,10 @@ function viewUsers() {
 function deleteUser() {
     $username = $_POST['username'] ?? '';
     $adminPass = $_POST['admin_pass'] ?? '';
+    if (!file_exists('data/admin_pass.txt')) {
+        echo json_encode(['error' => 'Admin password file not found']);
+        return;
+    }
     $storedHash = file_get_contents('data/admin_pass.txt');
 
     if (!password_verify($adminPass, $storedHash)) {
@@ -278,92 +306,111 @@ function deleteUser() {
         return;
     }
 
-    $xml = simplexml_load_file('data/users.xml');
-    $index = 0;
-    foreach ($xml->user as $u) {
-        if ((string)$u->username === $username) {
-            unset($xml->user[$index]);
-            $xml->asXML('data/users.xml');
-            echo json_encode(["status" => "User deleted"]);
-            return;
-        }
-        $index++;
+    if (!file_exists('data/users.xml')) {
+        echo json_encode(['error' => 'Users file not found']);
+        return;
     }
 
-    echo json_encode(["error" => "User not found"]);
+    $xml = simplexml_load_file('data/users.xml');
+
+    $found = false;
+    foreach ($xml->user as $key => $u) {
+        if ((string)$u->username === $username) {
+            unset($xml->user[$key]);
+            $found = true;
+            break;
+        }
+    }
+
+    if (!$found) {
+        echo json_encode(["error" => "User not found"]);
+        return;
+    }
+
+    if ($xml->asXML('data/users.xml')) {
+        echo json_encode(["status" => "User deleted"]);
+    } else {
+        echo json_encode(["error" => "Failed to delete user"]);
+    }
 }
 
 function viewTransactions() {
+    if (!file_exists('data/transactions.xml')) {
+        echo json_encode(['error' => 'Transactions file not found']);
+        return;
+    }
     $xml = simplexml_load_file('data/transactions.xml');
     $transactions = [];
-    $total = 0;
-
     foreach ($xml->transaction as $t) {
-        $amount = (float)$t->amount;
         $transactions[] = [
+            'id' => (string)$t['id'],
             'user' => (string)$t->user,
-            'amount' => $amount,
+            'items' => (int)$t->items,
+            'total' => (float)$t->total,
             'date' => (string)$t->date
         ];
-        $total += $amount;
     }
-
-    echo json_encode(['transactions' => $transactions, 'total_payments' => $total]);
+    echo json_encode($transactions);
 }
 
 function deleteProduct() {
     $id = $_POST['id'] ?? '';
-    if (!$id) {
-        echo json_encode(['error' => 'Product ID required']);
+    if (!file_exists('data/products.xml')) {
+        echo json_encode(['error' => 'Products file not found']);
         return;
     }
+    $xml = simplexml_load_file('data/products.xml');
 
-    $file = 'data/products.xml';
-    $xml = simplexml_load_file($file);
-
-    $index = 0;
     $found = false;
-    foreach ($xml->product as $p) {
+    foreach ($xml->product as $key => $p) {
         if ((string)$p['id'] === $id) {
-            unset($xml->product[$index]);
+            unset($xml->product[$key]);
             $found = true;
             break;
         }
-        $index++;
     }
 
-    if ($found) {
-        $xml->asXML($file);
-        echo json_encode(['status' => 'Product deleted']);
+    if (!$found) {
+        echo json_encode(["error" => "Product not found"]);
+        return;
+    }
+
+    if ($xml->asXML('data/products.xml')) {
+        echo json_encode(["status" => "Product deleted"]);
     } else {
-        echo json_encode(['error' => 'Product not found']);
+        echo json_encode(["error" => "Failed to delete product"]);
     }
 }
 
 function deleteCategory() {
-    $categoryName = $_POST['category'] ?? '';
-    if (!$categoryName) {
-        echo json_encode(['error' => 'Category name required']);
+    $category = $_POST['category'] ?? '';
+    if (!$category) {
+        echo json_encode(['error' => 'Category required']);
         return;
     }
+    if (!file_exists('data/categories.xml')) {
+        echo json_encode(['error' => 'Categories file not found']);
+        return;
+    }
+    $xml = simplexml_load_file('data/categories.xml');
 
-    $file = 'data/products.xml';
-    $xml = simplexml_load_file($file);
-
-    $removedAny = false;
-    for ($i = count($xml->product) - 1; $i >= 0; $i--) {
-        $p = $xml->product[$i];
-        if (strtolower((string)$p->category) === strtolower($categoryName)) {
-            unset($xml->product[$i]);
-            $removedAny = true;
+    $found = false;
+    foreach ($xml->category as $key => $c) {
+        if ((string)$c == $category) {
+            unset($xml->category[$key]);
+            $found = true;
+            break;
         }
     }
-
-    if ($removedAny) {
-        $xml->asXML($file);
-        echo json_encode(['status' => "Category '$categoryName' and its products deleted"]);
+    if (!$found) {
+        echo json_encode(['error' => 'Category not found']);
+        return;
+    }
+    if ($xml->asXML('data/categories.xml')) {
+        echo json_encode(['status' => 'Category deleted']);
     } else {
-        echo json_encode(['error' => 'Category not found or no products in this category']);
+        echo json_encode(['error' => 'Failed to delete category']);
     }
 }
+
 ?>

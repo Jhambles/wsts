@@ -1,1 +1,2 @@
-<transactions></transactions>
+<?xml version="1.0"?>
+<transactions><transaction id="68356f99219b7"><user>guest</user><items>1</items><total>400</total><date>2025-05-27 09:54:01</date></transaction><transaction id="68356fd2281a0"><user>guest</user><items>1</items><total>100</total><date>2025-05-27 09:54:58</date></transaction><transaction id="6835706634b0a"><user>guest</user><items>1</items><total>400</total><date>2025-05-27 09:57:26</date></transaction></transactions>
