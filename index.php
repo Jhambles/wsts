@@ -28,27 +28,6 @@ $totalItems = count($filtered);
 $totalPages = ceil($totalItems / $perPage);
 $offset = ($page - 1) * $perPage;
 $paginated = array_slice($filtered, $offset, $perPage);
-
-// Load cart
-$cart = $_SESSION['cart'] ?? [];
-$cartItems = [];
-$cartTotal = 0;
-foreach ($cart as $id => $qty) {
-    foreach ($productsXml->product as $p) {
-        if ((string)$p['id'] === $id) {
-            $price = (float)$p->price * $qty;
-            $cartItems[] = [
-                'id' => $id,
-                'name' => (string)$p->name,
-                'qty' => $qty,
-                'price' => (float)$p->price,
-                'subtotal' => $price
-            ];
-            $cartTotal += $price;
-            break;
-        }
-    }
-}
 ?>
 
 <!DOCTYPE html>
@@ -57,25 +36,18 @@ foreach ($cart as $id => $qty) {
     <meta charset="UTF-8">
     <title>Fictional Store</title>
     <link rel="stylesheet" href="data/style.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <style>
-        .cart-popup {
-            position: absolute;
-            top: 40px;
-            right: 10px;
-            background: #fff;
-            border: 1px solid #ccc;
-            width: 300px;
+        .cart-alert {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #4caf50;
+            color: white;
             padding: 10px;
-            z-index: 1000;
+            border-radius: 5px;
             display: none;
-        }
-        .cart-item { margin-bottom: 10px; }
-        .cart-qty { width: 40px; }
-        .remove-item {
-            background: none;
-            border: none;
-            color: red;
-            cursor: pointer;
+            z-index: 9999;
         }
     </style>
 </head>
@@ -100,13 +72,10 @@ foreach ($cart as $id => $qty) {
         <input type="text" name="search" value="<?= htmlspecialchars($search) ?>" placeholder="Search MM CULTURE">
         <button type="submit">🔍</button>
     </form>
-
-    <!-- Cart Icon -->
-    <div class="cart" id="cart-icon">
-        🛒 Cart (<?= array_sum($cart) ?>)
-        <div id="cart-content" class="cart-popup"></div>
-    </div>
 </div>
+
+<!-- Cart Alert -->
+<div class="cart-alert" id="cart-alert">Product added to cart</div>
 
 <!-- Products -->
 <?php
@@ -134,10 +103,8 @@ foreach ($categoriesXml->category as $cat):
                 <img src="<?= htmlspecialchars($product->image) ?>" alt="<?= htmlspecialchars($product->name) ?>">
                 <h3><?= htmlspecialchars($product->name) ?></h3>
                 <p><?= htmlspecialchars($product->description) ?></p>
-                <form class="add-to-cart-form" data-id="<?= htmlspecialchars($product['id']) ?>">
-                    <input type="hidden" name="id" value="<?= htmlspecialchars($product['id']) ?>">
-                    <button type="submit">Add to Cart</button>
-                </form>
+                <p>Price: $<?= htmlspecialchars($product->price) ?></p>
+                <button class="add-to-cart" data-id="<?= htmlspecialchars($product['id']) ?>">Add to Cart</button>
             </div>
         <?php endforeach; ?>
     </div>
@@ -156,43 +123,26 @@ foreach ($categoriesXml->category as $cat):
     <?php endfor; ?>
 </div>
 
-<!-- Scripts -->
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<!-- AJAX Cart Script -->
 <script>
 $(document).ready(function() {
-    // Toggle cart popup
-    $('#cart-icon').on('click', function() {
-        $('#cart-content').toggle();
-        loadCart();
-    });
-
-    // Load cart content
-    function loadCart() {
-        $.get('cart.php', function(data) {
-            $('#cart-content').html(data).show();
+    $(document).on('click', '.add-to-cart', function() {
+        var productId = $(this).data('id');
+        $.ajax({
+            url: 'store.php?action=add_to_cart',
+            type: 'POST',
+            data: { id: productId, quantity: 1 },
+            success: function(response) {
+                if (response.status) {
+                    $('#cart-alert').fadeIn().delay(1500).fadeOut();
+                } else {
+                    alert('Error: ' + (response.error || 'Unknown error'));
+                }
+            },
+            error: function(xhr, status, error) {
+                alert('AJAX Error: ' + error);
+            }
         });
-    }
-
-    // AJAX Add to Cart
-    $(document).on('submit', '.add-to-cart-form', function(e) {
-        e.preventDefault();
-        const id = $(this).data('id');
-        $.post('addCart.php', { id: id, action: 'add', quantity: 1 }, function() {
-            loadCart(); // Show updated cart
-        });
-    });
-
-    // Quantity change in cart
-    $(document).on('change', '.cart-qty', function() {
-        const id = $(this).data('id');
-        const qty = $(this).val();
-        $.post('addCart.php', { id: id, quantity: qty, action: 'update' }, loadCart);
-    });
-
-    // Remove item
-    $(document).on('click', '.remove-item', function() {
-        const id = $(this).data('id');
-        $.post('addCart.php', { id: id, action: 'remove' }, loadCart);
     });
 });
 </script>

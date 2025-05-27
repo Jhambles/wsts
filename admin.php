@@ -145,7 +145,7 @@ foreach ($productsXml->product as $product) {
         }
         form.delete-form {
             display: inline;
-            margin-left: 10px;
+        
         }
     </style>
 </head>
@@ -306,28 +306,28 @@ foreach ($productsXml->product as $product) {
             }
         });
         <script>
-    function loadProductData(productId) {
-        const selected = productData.find(p => p.id === productId);
-        if (selected) {
-            document.getElementById('productSelect').value = selected.id;
-            fields.name.value = selected.name;
-            fields.category.value = selected.category;
-            fields.price.value = selected.price;
-            fields.description.value = selected.description;
-            fields.quantity.value = selected.quantity;
-            fields.tags.value = selected.tags;
+    function loadProductDetails(productId) {
+    const selected = productData.find(p => p.id === productId);
+    if (selected) {
+        document.getElementById('productSelect').value = selected.id;
+        document.getElementById('updateName').value = selected.name;
+        document.getElementById('updateCategory').value = selected.category;
+        document.getElementById('updatePrice').value = selected.price;
+        document.getElementById('updateDescription').value = selected.description;
+        document.getElementById('updateQuantity').value = selected.quantity;
+        document.getElementById('updateTags').value = selected.tags;
 
-            if (selected.image) {
-                fields.image.src = 'data/uploads/' + selected.image;
-                fields.image.style.display = 'block';
-            } else {
-                fields.image.style.display = 'none';
-            }
-
-            // Scroll to the form
-            document.querySelector('form[action="store.php"]').scrollIntoView({ behavior: 'smooth' });
+        if (selected.image) {
+            document.getElementById('currentImage').src = 'data/uploads/' + selected.image;
+            document.getElementById('currentImage').style.display = 'block';
+        } else {
+            document.getElementById('currentImage').style.display = 'none';
         }
+
+        // Scroll to form
+        document.getElementById('updateModal').scrollIntoView({ behavior: 'smooth' });
     }
+}
 </script>
 
     </script>
